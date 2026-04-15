@@ -22,12 +22,20 @@ paths:
     get:
       summary: 'Get item'
       operationId: 'getItem'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
     put:
       summary: 'Update item'
       operationId: 'updateItem'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -66,6 +74,10 @@ paths:
           schema:
             type: string
           description: 'Search query'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -103,6 +115,10 @@ paths:
           schema:
             type: string
           description: 'Fields to include'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -147,6 +163,10 @@ paths:
             type: integer
             maximum: 50
           description: 'Override limit for list operation'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -192,6 +212,10 @@ paths:
     get:
       summary: 'Get resource'
       operationId: 'getResource'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -237,6 +261,10 @@ paths:
           example: 'hello world'
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -267,6 +295,10 @@ paths:
           schema:
             type: integer
             default: 20
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -297,6 +329,10 @@ paths:
           schema:
             type: string
             example: 'user-123'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -326,6 +362,10 @@ paths:
           required: false
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -361,6 +401,13 @@ paths:
                 }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -408,6 +455,13 @@ paths:
                 }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -451,6 +505,13 @@ paths:
                 }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -497,6 +558,13 @@ paths:
                 }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -535,6 +603,10 @@ paths:
             type: integer
             default: 20
             example: 10
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -565,6 +637,13 @@ paths:
                 }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -597,6 +676,13 @@ paths:
                 }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -629,6 +715,13 @@ describe('openapi querystring parameter location', () => {
                 schema: { type: 'string' }
               }
             ],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }

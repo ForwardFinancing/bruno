@@ -20,6 +20,13 @@ describe('OpenAPI Path-Based Grouping - Duplicate Names', () => {
           get: {
             summary: 'Get User Details',
             operationId: 'getUserDetails',
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'User details'
@@ -32,6 +39,13 @@ describe('OpenAPI Path-Based Grouping - Duplicate Names', () => {
           get: {
             summary: 'Get User Details',
             operationId: 'getProductOwnerDetails',
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Product owner details'
@@ -44,6 +58,13 @@ describe('OpenAPI Path-Based Grouping - Duplicate Names', () => {
           get: {
             summary: 'Get User Details',
             operationId: 'getOrderCustomerDetails',
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Order customer details'

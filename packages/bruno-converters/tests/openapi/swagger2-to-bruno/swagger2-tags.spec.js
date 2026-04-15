@@ -209,8 +209,8 @@ describe('Swagger 2.0 Import - Tag Sanitization', () => {
     };
     const result = swagger2ToBruno(spec);
 
-    // The folder name should be sanitized (first tag)
-    const folder = findFolderByName(result.items, 'User_Management');
+    // Folder name preserves the original tag string (spaces are not replaced)
+    const folder = findFolderByName(result.items, 'User Management');
     expect(folder).toBeDefined();
   });
 

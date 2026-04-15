@@ -15,9 +15,13 @@ components:
       scheme: digest
 paths:
   /secure:
-    get:
+    post:
       security:
         - DigestAuth: []
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200': { description: OK }
 servers:
@@ -43,13 +47,17 @@ components:
       name: api_key
 paths:
   /search:
-    get:
+    post:
       security:
         - ApiKeyQuery: []
       parameters:
         - in: query
           name: q
           schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200': { description: OK }
 servers:
@@ -77,9 +85,13 @@ components:
       name: DEMO_API_KEY
 paths:
   /favorites:
-    get:
+    post:
       security:
         - ApiKeyCookie: []
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200': { description: OK }
 servers:
@@ -109,9 +121,13 @@ components:
           tokenUrl: https://auth.example.com/token
 paths:
   /orders:
-    get:
+    post:
       security:
         - OAuthAuthCode: []
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200': { description: OK }
 servers:
@@ -130,8 +146,12 @@ info:
   version: '1.0'
 paths:
   /public:
-    get:
+    post:
       security: []
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200': { description: OK }
 servers:

@@ -87,50 +87,26 @@ test.describe('Import OpenAPI Collection with Examples', () => {
       await expect(collectionName).toBeVisible();
     });
 
-    await test.step('Verify GET /users request exists and has examples', async () => {
-      const getUsersRequest = page.locator('.collection-item-name').getByText('Get all users');
-      await expect(getUsersRequest).toBeVisible();
-
-      // Find the chevron icon specifically for the "Get all users" request
-      const chevronIcon = page.getByTestId('request-item-chevron').nth(0);
-      await expect(chevronIcon).toBeVisible();
-
-      // Click the chevron to expand examples
-      await chevronIcon.click();
-
-      // Check if examples are visible
-      const successExample = page.locator('.collection-item-name').getByText('Success Response');
-      const emptyExample = page.locator('.collection-item-name').getByText('Empty Response');
-      const validationErrorExample = page.locator('.collection-item-name').getByText('Validation Error');
-      const serverErrorExample = page.locator('.collection-item-name').getByText('Server Error');
-
-      await expect(successExample).toBeVisible();
-      await expect(emptyExample).toBeVisible();
-      await expect(validationErrorExample).toBeVisible();
-      await expect(serverErrorExample).toBeVisible();
-
-      await chevronIcon.click();
+    await test.step('Verify GET /users request item exists in sidebar', async () => {
+      // GET /users has only response examples (no named request body examples),
+      // so it stays as a regular request item rather than becoming a folder.
+      const getUsersItem = page.locator('.collection-item-name').getByText('Get all users');
+      await expect(getUsersItem).toBeVisible();
     });
 
-    await test.step('Verify POST /users request exists and has examples', async () => {
-      // Click on the POST request
-      const createUserRequest = page.locator('.collection-item-name').getByText('Create a new user');
-      await expect(createUserRequest).toBeVisible();
-      await createUserRequest.click();
+    await test.step('Verify POST /users folder exists and contains example request items', async () => {
+      const createUserFolder = page.locator('.collection-item-name').getByText('Create a new user');
+      await expect(createUserFolder).toBeVisible();
 
-      // Find the chevron icon specifically for the "Create a new user" request
-      const chevronIcon = page.getByTestId('request-item-chevron').nth(1);
-      await expect(chevronIcon).toBeVisible();
+      // Click the folder to expand it and show child request items
+      await createUserFolder.click();
 
-      // Click the chevron to expand examples
-      await chevronIcon.click();
+      // Check if child request items are visible (one per named request body example)
+      const validUserRequest = page.locator('.collection-item-name').getByText('Valid User');
+      const invalidUserRequest = page.locator('.collection-item-name').getByText('Invalid User');
 
-      // Check if examples are visible
-      const createdExample = page.locator('.collection-item-name').getByText('User Created (Valid User)');
-      const validationErrorExample = page.locator('.collection-item-name').getByText('Validation Error (Invalid User)');
-
-      await expect(createdExample).toBeVisible();
-      await expect(validationErrorExample).toBeVisible();
+      await expect(validUserRequest).toBeVisible();
+      await expect(invalidUserRequest).toBeVisible();
     });
 
     await test.step('Cleanup - close all collections', async () => {
@@ -233,18 +209,11 @@ test.describe('Import OpenAPI Collection with Examples', () => {
       await expect(createUserRequest).toBeVisible();
     });
 
-    await test.step('Verify examples work with path-based grouping', async () => {
-      // Test GET /users request examples
-      const getUsersRequest = page.locator('.collection-item-name').getByText('Get all users');
-      await expect(getUsersRequest).toBeVisible();
-
-      const chevronIcon = page.getByTestId('request-item-chevron').nth(0);
-      await expect(chevronIcon).toBeVisible();
-      await chevronIcon.click();
-
-      // Check if examples are visible
-      const successExample = page.locator('.collection-item-name').getByText('Success Response');
-      await expect(successExample).toBeVisible();
+    await test.step('Verify GET /users request item exists with path-based grouping', async () => {
+      // GET /users has only response examples (no named request body examples),
+      // so it stays as a regular request item rather than becoming a folder.
+      const getUsersItem = page.locator('.collection-item-name').getByText('Get all users');
+      await expect(getUsersItem).toBeVisible();
     });
   });
 });

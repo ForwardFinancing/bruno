@@ -49,6 +49,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['User Management'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -79,6 +86,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['api.v1', 'user.service'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -109,6 +123,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['API (v1)', 'user-service:v2'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -140,6 +161,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['users', 'api-v1', 'user_service'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -169,6 +197,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: [],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -197,6 +232,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
           get: {
             operationId: 'getUsers',
             summary: 'Get users',
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -226,6 +268,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['User Management', 'User Management', 'user-management'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -256,6 +305,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['...', 'valid-tag', '---'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -285,6 +341,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['User Management'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -297,6 +360,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getPosts',
             summary: 'Get posts',
             tags: ['User Management'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -308,10 +378,10 @@ describe('OpenAPI Import - Tag Sanitization', () => {
     };
 
     const result = openApiToBruno(JSON.stringify(openApiSpec));
-    // Find the folder created from the tag - spaces replaced with underscores
-    const folder = findFolderByName(result.items, 'User_Management');
+    // Folder name preserves the original tag string (spaces are not replaced)
+    const folder = findFolderByName(result.items, 'User Management');
     expect(folder).toBeDefined();
-    expect(folder.name).toBe('User_Management');
+    expect(folder.name).toBe('User Management');
     expect(folder.items).toHaveLength(2);
   });
 
@@ -328,6 +398,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['api.v1'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'
@@ -339,10 +416,10 @@ describe('OpenAPI Import - Tag Sanitization', () => {
     };
 
     const result = openApiToBruno(JSON.stringify(openApiSpec));
-    // Find the folder created from the tag - dots should be replaced
-    const folder = findFolderByName(result.items, 'api_v1');
+    // Folder name preserves the original tag string (dots are not replaced)
+    const folder = findFolderByName(result.items, 'api.v1');
     expect(folder).toBeDefined();
-    expect(folder.name).toBe('api_v1');
+    expect(folder.name).toBe('api.v1');
   });
 
   it('should handle utf characters as well', () => {
@@ -378,6 +455,13 @@ describe('OpenAPI Import - Tag Sanitization', () => {
             operationId: 'getUsers',
             summary: 'Get users',
             tags: ['模型管理'],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: {
               200: {
                 description: 'Success'

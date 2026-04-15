@@ -503,15 +503,18 @@ export const createBrunoExample = ({ brunoRequestItem, exampleValue, exampleName
  */
 export const groupRequestsByTags = (requests) => {
   let _groups = {};
+  let _groupDisplayNames = {}; // sanitized key → original tag (for folder display name)
   let ungrouped = [];
   each(requests, (request) => {
     let tags = request.operationObject.tags || [];
     if (tags.length > 0) {
-      let tag = sanitizeTag(tags[0].trim()); // take first tag, trim whitespace, and sanitize
+      let originalTag = tags[0].trim();
+      let tag = sanitizeTag(originalTag); // sanitized key used for deduplication only
 
       if (tag) {
         if (!_groups[tag]) {
           _groups[tag] = [];
+          _groupDisplayNames[tag] = originalTag; // preserve original for folder name
         }
         _groups[tag].push(request);
       } else {
@@ -522,10 +525,10 @@ export const groupRequestsByTags = (requests) => {
     }
   });
 
-  let groups = Object.keys(_groups).map((groupName) => {
+  let groups = Object.keys(_groups).map((groupKey) => {
     return {
-      name: groupName,
-      requests: _groups[groupName]
+      name: _groupDisplayNames[groupKey], // original tag with spaces preserved
+      requests: _groups[groupKey]
     };
   });
 
@@ -599,7 +602,7 @@ export const groupRequestsByPath = (requests, transformFn, options = {}) => {
   const buildFolderStructure = (group) => {
     // Create a new usedNames set for each folder/subfolder scope
     const localUsedNames = new Set();
-    const items = group.requests.map((req) => transformFn(req, localUsedNames, options));
+    const items = group.requests.map((req) => transformFn(req, localUsedNames, options)).filter(Boolean);
 
     // Add sub-folders
     const subFolders = [];
@@ -635,7 +638,7 @@ export const groupRequestsByPath = (requests, transformFn, options = {}) => {
       meta: { name: group.name }
     },
     items: buildFolderStructure(group)
-  }));
+  })).filter((folder) => folder.items.length > 0);
 
   return folders;
 };

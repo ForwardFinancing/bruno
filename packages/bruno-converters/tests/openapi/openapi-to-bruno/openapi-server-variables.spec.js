@@ -10,8 +10,12 @@ info:
   version: '1.0.0'
 paths:
   /test:
-    get:
+    post:
       summary: 'Test'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -56,8 +60,12 @@ info:
   version: '1.0.0'
 paths:
   /test:
-    get:
+    post:
       summary: 'Test'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -79,8 +87,12 @@ info:
   version: '1.0.0'
 paths:
   /test:
-    get:
+    post:
       summary: 'Test'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -236,6 +248,13 @@ describe('operation-level servers to request vars', () => {
             summary: 'Get files',
             operationId: 'getFiles',
             servers: [{ url: 'https://files.example.com' }],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -270,6 +289,13 @@ describe('operation-level servers to request vars', () => {
                 region: { default: 'us-east' }
               }
             }],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -299,6 +325,13 @@ describe('operation-level servers to request vars', () => {
         '/test': {
           get: {
             summary: 'Test',
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }
@@ -320,10 +353,24 @@ describe('operation-level servers to request vars', () => {
           get: {
             summary: 'Get data',
             servers: [{ url: 'https://data-server.example.com' }],
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           },
           post: {
             summary: 'Post data',
+            requestBody: {
+              content: {
+                'application/json': {
+                  example: {}
+                }
+              }
+            },
             responses: { 200: { description: 'OK' } }
           }
         }

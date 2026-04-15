@@ -12,60 +12,26 @@ describe('OpenAPI with Examples', () => {
 
     expect(brunoCollection).toBeDefined();
     expect(brunoCollection.name).toBe('API with Examples');
-    expect(brunoCollection.items).toHaveLength(3); // Three separate requests
+    expect(brunoCollection.items).toHaveLength(1); // Only POST /users remains
 
-    // Test GET /users endpoint
+    // GET /users is excluded (no requestBody examples)
     const getUsersRequest = brunoCollection.items.find((item) => item.name === 'Get all users');
-    expect(getUsersRequest).toBeDefined();
-    expect(getUsersRequest.examples).toBeDefined();
-    expect(getUsersRequest.examples).toHaveLength(4);
+    expect(getUsersRequest).toBeUndefined();
 
-    // Check specific examples
-    const successExample = getUsersRequest.examples.find((ex) => ex.name === 'Success Response');
-    expect(successExample).toBeDefined();
-    expect(successExample.response.status).toEqual(200);
-    expect(successExample.response.statusText).toBe('OK');
-    expect(successExample.response.headers).toHaveLength(1);
-    expect(successExample.response.headers[0].name).toBe('Content-Type');
-    expect(successExample.response.headers[0].value).toBe('application/json');
-    expect(JSON.parse(successExample.response.body.content)).toEqual({
-      users: [
-        { id: 1, name: 'John Doe', email: 'john@example.com' },
-        { id: 2, name: 'Jane Smith', email: 'jane@example.com' }
-      ]
-    });
+    // POST /users becomes a folder with one item per named requestBody example
+    const createUserFolder = brunoCollection.items.find((item) => item.name === 'Create a new user');
+    expect(createUserFolder).toBeDefined();
+    expect(createUserFolder.type).toBe('folder');
+    expect(createUserFolder.items).toHaveLength(2);
 
-    const emptyExample = getUsersRequest.examples.find((ex) => ex.name === 'Empty Response');
-    expect(emptyExample.response.status).toEqual(200);
-    expect(JSON.parse(emptyExample.response.body.content)).toEqual({ users: [] });
+    const validUserRequest = createUserFolder.items.find((item) => item.name === 'Valid User');
+    expect(validUserRequest).toBeDefined();
+    expect(validUserRequest.type).toBe('http-request');
+    expect(JSON.parse(validUserRequest.request.body.json)).toEqual({ name: 'John Doe', email: 'john@example.com' });
 
-    const validationErrorExample = getUsersRequest.examples.find((ex) => ex.name === 'Validation Error');
-    expect(validationErrorExample).toBeDefined();
-    expect(validationErrorExample.response.status).toEqual(400);
-    expect(validationErrorExample.response.statusText).toBe('Bad Request');
-
-    const serverErrorExample = getUsersRequest.examples.find((ex) => ex.name === 'Server Error');
-    expect(serverErrorExample).toBeDefined();
-    expect(serverErrorExample.response.status).toEqual(500);
-    expect(serverErrorExample.response.statusText).toBe('Internal Server Error');
-
-    // Test POST /users endpoint
-    const createUserRequest = brunoCollection.items.find((item) => item.name === 'Create a new user');
-    expect(createUserRequest).toBeDefined();
-    expect(createUserRequest.examples).toBeDefined();
-    expect(createUserRequest.examples).toHaveLength(4);
-
-    // Check response examples
-    const createdExample = createUserRequest.examples.find((ex) => ex.name === 'User Created (Valid User)');
-    expect(createdExample).toBeDefined();
-    expect(createdExample.response.status).toEqual(201);
-    expect(createdExample.response.statusText).toBe('Created');
-    expect(JSON.parse(createdExample.response.body.content)).toEqual({
-      id: 123,
-      name: 'John Doe',
-      email: 'john@example.com',
-      created_at: '2023-01-01T00:00:00Z'
-    });
+    const invalidUserRequest = createUserFolder.items.find((item) => item.name === 'Invalid User');
+    expect(invalidUserRequest).toBeDefined();
+    expect(JSON.parse(invalidUserRequest.request.body.json)).toEqual({ name: '', email: 'invalid-email' });
   });
 
   it('should handle OpenAPI examples with different content types', () => {
@@ -76,42 +42,43 @@ info:
   title: 'API with Different Content Types'
 paths:
   /data:
-    get:
-      summary: 'Get data'
-      operationId: 'getData'
+    post:
+      summary: 'Post data'
+      operationId: 'postData'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              json_request:
+                summary: 'JSON Request'
+                value:
+                  message: 'Hello World'
+          text/plain:
+            examples:
+              text_request:
+                summary: 'Text Request'
+                value: 'Hello World'
       responses:
         '200':
-          description: 'Successful response'
-          content:
-            application/json:
-              examples:
-                json_response:
-                  summary: 'JSON Response'
-                  value:
-                    message: 'Hello World'
-            text/plain:
-              examples:
-                text_response:
-                  summary: 'Text Response'
-                  value: 'Hello World'
+          description: 'OK'
 servers:
   - url: 'https://api.example.com'
 `;
 
     const brunoCollection = openApiToBruno(openApiWithDifferentContentTypes);
-    const request = brunoCollection.items[0];
+    const folder = brunoCollection.items[0];
+    expect(folder.type).toBe('folder');
+    expect(folder.items).toHaveLength(2);
 
-    expect(request.examples).toHaveLength(2);
+    const jsonItem = folder.items.find((item) => item.name === 'JSON Request');
+    expect(jsonItem).toBeDefined();
+    expect(jsonItem.request.body.mode).toBe('json');
+    expect(JSON.parse(jsonItem.request.body.json)).toEqual({ message: 'Hello World' });
 
-    const jsonExample = request.examples.find((ex) => ex.name === 'JSON Response');
-    expect(jsonExample).toBeDefined();
-    expect(jsonExample.response.headers[0].value).toBe('application/json');
-
-    const textExample = request.examples.find((ex) => ex.name === 'Text Response');
-    expect(textExample).toBeDefined();
-    expect(textExample.response.headers[0].value).toBe('text/plain');
-    expect(textExample.response.body.content).toBe('Hello World');
-    expect(textExample.response.body.type).toBe('text');
+    const textItem = folder.items.find((item) => item.name === 'Text Request');
+    expect(textItem).toBeDefined();
+    expect(textItem.request.body.mode).toBe('text');
+    expect(textItem.request.body.text).toBe('Hello World');
   });
 
   it('should handle OpenAPI examples without summary or description', () => {
@@ -122,34 +89,33 @@ info:
   title: 'API with Minimal Examples'
 paths:
   /test:
-    get:
+    post:
       summary: 'Test endpoint'
       operationId: 'test'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              example1:
+                value:
+                  message: 'test'
       responses:
         '200':
           description: 'OK'
-          content:
-            application/json:
-              examples:
-                example1:
-                  value:
-                    message: 'test'
 servers:
   - url: 'https://api.example.com'
 `;
 
     const brunoCollection = openApiToBruno(openApiWithMinimalExamples);
-    const request = brunoCollection.items[0];
-
-    expect(request.examples).toHaveLength(1);
-    const example = request.examples[0];
-    expect(example.name).toBe('example1');
-    expect(example.description).toBe('');
-    expect(example.response.body.type).toBe('json');
-    expect(JSON.parse(example.response.body.content)).toEqual({ message: 'test' });
+    const folder = brunoCollection.items[0];
+    expect(folder.type).toBe('folder');
+    expect(folder.items).toHaveLength(1);
+    const item = folder.items[0];
+    expect(item.name).toBe('example1');
+    expect(JSON.parse(item.request.body.json)).toEqual({ message: 'test' });
   });
 
-  it('should create examples without specified request body, when response is present', () => {
+  it('should exclude operations without explicit request body examples', () => {
     const openApiWithoutExamples = `
 openapi: '3.0.0'
 info:
@@ -172,13 +138,7 @@ servers:
 `;
 
     const brunoCollection = openApiToBruno(openApiWithoutExamples);
-    const request = brunoCollection.items[0];
-
-    expect(request.examples).toHaveLength(1);
-    const example = request.examples[0];
-    expect(example.name).toBe('200 Response');
-    expect(example.description).toBe('OK');
-    expect(example.response.body.type).toBe('json');
+    expect(brunoCollection.items).toHaveLength(0);
   });
 
   it('should support path-based grouping when specified', () => {
@@ -189,46 +149,46 @@ info:
   title: 'API with Path Grouping'
 paths:
   /users:
-    get:
-      summary: 'Get all users'
-      operationId: 'getUsers'
-      responses:
-        '200':
-          description: 'OK'
-          content:
-            application/json:
-              examples:
-                success:
-                  summary: 'Success Response'
-                  value:
-                    users: []
     post:
       summary: 'Create user'
       operationId: 'createUser'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              success:
+                summary: 'Success Response'
+                value:
+                  users: []
       responses:
-        '201':
-          description: 'Created'
-          content:
-            application/json:
-              examples:
-                created:
-                  summary: 'User Created'
-                  value:
-                    id: 123
+        '200': { description: 'OK' }
+    put:
+      summary: 'Update user'
+      operationId: 'updateUser'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              created:
+                summary: 'User Created'
+                value:
+                  id: 123
+      responses:
+        '201': { description: 'Created' }
   /products:
-    get:
-      summary: 'Get all products'
-      operationId: 'getProducts'
+    post:
+      summary: 'Create product'
+      operationId: 'createProduct'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              success:
+                summary: 'Products Response'
+                value:
+                  products: []
       responses:
-        '200':
-          description: 'OK'
-          content:
-            application/json:
-              examples:
-                success:
-                  summary: 'Products Response'
-                  value:
-                    products: []
+        '200': { description: 'OK' }
 servers:
   - url: 'https://api.example.com'
 `;
@@ -245,18 +205,18 @@ servers:
     const usersFolder = brunoCollection.items.find((item) => item.name === 'users');
     expect(usersFolder).toBeDefined();
     expect(usersFolder.type).toBe('folder');
-    expect(usersFolder.items).toHaveLength(2); // GET and POST /users
+    expect(usersFolder.items).toHaveLength(2); // Two operations in /users path
 
     const productsFolder = brunoCollection.items.find((item) => item.name === 'products');
     expect(productsFolder).toBeDefined();
     expect(productsFolder.type).toBe('folder');
-    expect(productsFolder.items).toHaveLength(1); // GET /products
+    expect(productsFolder.items).toHaveLength(1);
 
-    // Verify examples are preserved in path-based grouping
-    const getUsersRequest = usersFolder.items.find((item) => item.name === 'Get all users');
-    expect(getUsersRequest.examples).toBeDefined();
-    expect(getUsersRequest.examples).toHaveLength(1);
-    expect(getUsersRequest.examples[0].name).toBe('Success Response');
+    // Each operation folder has one item per named requestBody example
+    const createUserFolder = usersFolder.items.find((item) => item.name === 'Create user');
+    expect(createUserFolder.type).toBe('folder');
+    expect(createUserFolder.items).toHaveLength(1);
+    expect(createUserFolder.items[0].name).toBe('Success Response');
   });
 
   it('should default to tag-based grouping when no groupBy option is specified', () => {
@@ -267,21 +227,27 @@ info:
   title: 'API with Tags'
 paths:
   /users:
-    get:
-      summary: 'Get all users'
-      operationId: 'getUsers'
+    post:
+      summary: 'Create user'
+      operationId: 'createUser'
       tags: ['Users']
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
-        '200':
-          description: 'OK'
+        '200': { description: 'OK' }
   /products:
-    get:
-      summary: 'Get all products'
-      operationId: 'getProducts'
+    post:
+      summary: 'Create product'
+      operationId: 'createProduct'
       tags: ['Products']
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
-        '200':
-          description: 'OK'
+        '200': { description: 'OK' }
 servers:
   - url: 'https://api.example.com'
 `;
@@ -298,12 +264,12 @@ servers:
     const usersFolder = brunoCollection.items.find((item) => item.name === 'Users');
     expect(usersFolder).toBeDefined();
     expect(usersFolder.type).toBe('folder');
-    expect(usersFolder.items).toHaveLength(1); // GET /users
+    expect(usersFolder.items).toHaveLength(1); // one request
 
     const productsFolder = brunoCollection.items.find((item) => item.name === 'Products');
     expect(productsFolder).toBeDefined();
     expect(productsFolder.type).toBe('folder');
-    expect(productsFolder.items).toHaveLength(1); // GET /products
+    expect(productsFolder.items).toHaveLength(1);
   });
 
   describe('Request Body Examples', () => {
@@ -353,36 +319,29 @@ servers:
 `;
 
       const brunoCollection = openApiToBruno(openApiWithMatchingKeys);
-      const request = brunoCollection.items[0];
+      const folder = brunoCollection.items[0];
 
-      expect(request.examples).toBeDefined();
-      expect(request.examples).toHaveLength(2);
+      expect(folder.type).toBe('folder');
+      expect(folder.items).toHaveLength(2);
 
-      // Check that matching keys are used
-      const validUserExample = request.examples.find((ex) => ex.name === 'User Created');
-      expect(validUserExample).toBeDefined();
-      expect(validUserExample.request.body.mode).toBe('json');
-      expect(JSON.parse(validUserExample.request.body.json)).toEqual({
+      // Items are named by request body example summary, not response example
+      const validUserRequest = folder.items.find((item) => item.name === 'Valid User');
+      expect(validUserRequest).toBeDefined();
+      expect(validUserRequest.request.body.mode).toBe('json');
+      expect(JSON.parse(validUserRequest.request.body.json)).toEqual({
         name: 'John Doe',
         email: 'john@example.com'
       });
-      expect(JSON.parse(validUserExample.response.body.content)).toEqual({
-        id: 123,
-        name: 'John Doe'
-      });
 
-      const invalidUserExample = request.examples.find((ex) => ex.name === 'Validation Error');
-      expect(invalidUserExample).toBeDefined();
-      expect(JSON.parse(invalidUserExample.request.body.json)).toEqual({
+      const invalidUserRequest = folder.items.find((item) => item.name === 'Invalid User');
+      expect(invalidUserRequest).toBeDefined();
+      expect(JSON.parse(invalidUserRequest.request.body.json)).toEqual({
         name: '',
         email: 'invalid'
       });
-      expect(JSON.parse(invalidUserExample.response.body.content)).toEqual({
-        error: 'Invalid input'
-      });
     });
 
-    it('should create all combinations when response example keys do not match request body examples', () => {
+    it('should create one item per request body example regardless of response examples', () => {
       const openApiWithNonMatchingKeys = `
 openapi: '3.0.0'
 info:
@@ -432,37 +391,25 @@ servers:
 `;
 
       const brunoCollection = openApiToBruno(openApiWithNonMatchingKeys);
-      const request = brunoCollection.items[0];
+      const folder = brunoCollection.items[0];
 
-      expect(request.examples).toBeDefined();
-      // Should have 4 examples: 2 response examples × 2 request body examples
-      expect(request.examples).toHaveLength(4);
+      expect(folder.type).toBe('folder');
+      // One item per named request body example — response examples are not cross-joined
+      expect(folder.items).toHaveLength(2);
 
-      // Check combinations for 201 response
-      const createdWithValid = request.examples.find((ex) => ex.name === 'User Created (Valid User)');
-      expect(createdWithValid).toBeDefined();
-      expect(createdWithValid.response.status).toEqual(201);
-      expect(JSON.parse(createdWithValid.request.body.json)).toEqual({
+      const validUserRequest = folder.items.find((item) => item.name === 'Valid User');
+      expect(validUserRequest).toBeDefined();
+      expect(JSON.parse(validUserRequest.request.body.json)).toEqual({
         name: 'John Doe',
         email: 'john@example.com'
       });
 
-      const createdWithInvalid = request.examples.find((ex) => ex.name === 'User Created (Invalid User)');
-      expect(createdWithInvalid).toBeDefined();
-      expect(createdWithInvalid.response.status).toEqual(201);
-      expect(JSON.parse(createdWithInvalid.request.body.json)).toEqual({
+      const invalidUserRequest = folder.items.find((item) => item.name === 'Invalid User');
+      expect(invalidUserRequest).toBeDefined();
+      expect(JSON.parse(invalidUserRequest.request.body.json)).toEqual({
         name: '',
         email: 'invalid'
       });
-
-      // Check combinations for 400 response
-      const errorWithValid = request.examples.find((ex) => ex.name === 'Validation Error (Valid User)');
-      expect(errorWithValid).toBeDefined();
-      expect(errorWithValid.response.status).toEqual(400);
-
-      const errorWithInvalid = request.examples.find((ex) => ex.name === 'Validation Error (Invalid User)');
-      expect(errorWithInvalid).toBeDefined();
-      expect(errorWithInvalid.response.status).toEqual(400);
     });
 
     it('should use single request body example for all response examples', () => {
@@ -504,6 +451,7 @@ servers:
       const brunoCollection = openApiToBruno(openApiWithSingleRequestBody);
       const request = brunoCollection.items[0];
 
+      // No named request body examples, stays as request with .examples
       expect(request.examples).toBeDefined();
       expect(request.examples).toHaveLength(2);
 
@@ -524,7 +472,7 @@ servers:
       });
     });
 
-    it('should use schema-based request body for all response examples', () => {
+    it('should exclude operations with schema-only request body (no explicit example)', () => {
       const openApiWithSchemaRequestBody = `
 openapi: '3.0.0'
 info:
@@ -571,22 +519,8 @@ servers:
 `;
 
       const brunoCollection = openApiToBruno(openApiWithSchemaRequestBody);
-      const request = brunoCollection.items[0];
-
-      expect(request.examples).toBeDefined();
-      expect(request.examples).toHaveLength(2);
-
-      // Both examples should have request body generated from schema
-      const createdExample = request.examples.find((ex) => ex.name === 'User Created');
-      expect(createdExample).toBeDefined();
-      expect(createdExample.request.body.mode).toBe('json');
-      const requestBody = JSON.parse(createdExample.request.body.json);
-      expect(requestBody).toHaveProperty('name');
-      expect(requestBody).toHaveProperty('email');
-
-      const errorExample = request.examples.find((ex) => ex.name === 'Error Response');
-      expect(errorExample).toBeDefined();
-      expect(JSON.parse(errorExample.request.body.json)).toEqual(requestBody);
+      // schema-only requestBody means no explicit example → excluded
+      expect(brunoCollection.items).toHaveLength(0);
     });
 
     it('should handle request body examples with different content types', () => {
@@ -629,21 +563,21 @@ servers:
 `;
 
       const brunoCollection = openApiToBruno(openApiWithDifferentRequestBodyTypes);
-      const request = brunoCollection.items[0];
+      const folder = brunoCollection.items[0];
 
-      expect(request.examples).toBeDefined();
-      // Should create combinations: 1 response × 2 request body examples = 2 examples
-      expect(request.examples).toHaveLength(2);
+      expect(folder.type).toBe('folder');
+      // One item per named request body example — named by example summary
+      expect(folder.items).toHaveLength(2);
 
-      const jsonExample = request.examples.find((ex) => ex.name === 'Success (JSON Data)');
-      expect(jsonExample).toBeDefined();
-      expect(jsonExample.request.body.mode).toBe('json');
-      expect(JSON.parse(jsonExample.request.body.json)).toEqual({ message: 'Hello' });
+      const jsonRequest = folder.items.find((item) => item.name === 'JSON Data');
+      expect(jsonRequest).toBeDefined();
+      expect(jsonRequest.request.body.mode).toBe('json');
+      expect(JSON.parse(jsonRequest.request.body.json)).toEqual({ message: 'Hello' });
 
-      const textExample = request.examples.find((ex) => ex.name === 'Success (Text Data)');
-      expect(textExample).toBeDefined();
-      expect(textExample.request.body.mode).toBe('text');
-      expect(textExample.request.body.text).toBe('Hello World');
+      const textRequest = folder.items.find((item) => item.name === 'Text Data');
+      expect(textRequest).toBeDefined();
+      expect(textRequest.request.body.mode).toBe('text');
+      expect(textRequest.request.body.text).toBe('Hello World');
     });
 
     it('should handle mixed matching and non-matching request body examples', () => {
@@ -691,29 +625,28 @@ servers:
 `;
 
       const brunoCollection = openApiToBruno(openApiWithMixedMatching);
-      const request = brunoCollection.items[0];
+      const folder = brunoCollection.items[0];
 
-      expect(request.examples).toBeDefined();
-      // Should have: 1 matched (valid_user) + 2 combinations for unmatched (unmatched × 2 request body examples) = 3
-      expect(request.examples).toHaveLength(3);
+      expect(folder.type).toBe('folder');
+      // One item per named request body example — response examples are not cross-joined
+      expect(folder.items).toHaveLength(2);
 
-      // Matched example
-      const matchedExample = request.examples.find((ex) => ex.name === 'User Created');
-      expect(matchedExample).toBeDefined();
-      expect(JSON.parse(matchedExample.request.body.json)).toEqual({
+      const validUserRequest = folder.items.find((item) => item.name === 'Valid User');
+      expect(validUserRequest).toBeDefined();
+      expect(JSON.parse(validUserRequest.request.body.json)).toEqual({
         name: 'John Doe',
         email: 'john@example.com'
       });
 
-      // Unmatched combinations
-      const unmatchedWithValid = request.examples.find((ex) => ex.name === 'Unmatched Response (Valid User)');
-      expect(unmatchedWithValid).toBeDefined();
-
-      const unmatchedWithInvalid = request.examples.find((ex) => ex.name === 'Unmatched Response (Invalid User)');
-      expect(unmatchedWithInvalid).toBeDefined();
+      const invalidUserRequest = folder.items.find((item) => item.name === 'Invalid User');
+      expect(invalidUserRequest).toBeDefined();
+      expect(JSON.parse(invalidUserRequest.request.body.json)).toEqual({
+        name: '',
+        email: 'invalid'
+      });
     });
 
-    it('should not create request body when no request body is defined', () => {
+    it('should exclude operations with no request body', () => {
       const openApiWithoutRequestBody = `
 openapi: '3.0.0'
 info:
@@ -739,14 +672,8 @@ servers:
 `;
 
       const brunoCollection = openApiToBruno(openApiWithoutRequestBody);
-      const request = brunoCollection.items[0];
-
-      expect(request.examples).toBeDefined();
-      expect(request.examples).toHaveLength(1);
-
-      const example = request.examples[0];
-      expect(example.request.body.mode).toBe('none');
-      expect(example.request.body.json).toBeNull();
+      // No requestBody → excluded
+      expect(brunoCollection.items).toHaveLength(0);
     });
 
     it('should handle request body with singular example and multiple response examples', () => {
@@ -797,6 +724,7 @@ servers:
       const brunoCollection = openApiToBruno(openApiWithSingularExample);
       const request = brunoCollection.items[0];
 
+      // Singular (non-named) request body example, stays as request with .examples
       expect(request.examples).toBeDefined();
       expect(request.examples).toHaveLength(3);
 
@@ -805,6 +733,336 @@ servers:
       request.examples.forEach((example) => {
         expect(example.request.body.mode).toBe('json');
         expect(JSON.parse(example.request.body.json)).toEqual(requestBodyValue);
+      });
+    });
+  });
+
+  describe('x-bruno-var substitution', () => {
+    it('should replace non-null example values with {{?field_name}} when x-bruno-var: true on schema property', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Test'
+  version: '1.0.0'
+paths:
+  /users:
+    post:
+      summary: 'Create user'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  x-bruno-var: true
+                name:
+                  type: string
+                role:
+                  type: string
+                  x-bruno-var: true
+            examples:
+              validUser:
+                summary: 'Valid User'
+                value:
+                  email: 'john@example.com'
+                  name: 'John Doe'
+                  role: 'admin'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      expect(folder.type).toBe('folder');
+      const item = folder.items[0];
+      const body = JSON.parse(item.request.body.json);
+      // email and role have x-bruno-var: true and non-null example values → replaced
+      expect(body.email).toBe('{{?email}}');
+      expect(body.role).toBe('{{?role}}');
+      // name has no x-bruno-var: true → kept as-is
+      expect(body.name).toBe('John Doe');
+    });
+
+    it('should not replace null example values even when x-bruno-var: true', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Null Test'
+  version: '1.0.0'
+paths:
+  /users:
+    post:
+      summary: 'Create user'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  x-bruno-var: true
+                nickname:
+                  type: string
+                  x-bruno-var: true
+            examples:
+              withNull:
+                summary: 'With Null'
+                value:
+                  email: 'john@example.com'
+                  nickname: null
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      const item = folder.items[0];
+      const body = JSON.parse(item.request.body.json);
+      // email is non-null → replaced
+      expect(body.email).toBe('{{?email}}');
+      // nickname is null → kept as null
+      expect(body.nickname).toBeNull();
+    });
+
+    it('should apply x-bruno-var substitution to each named example independently', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Multi-Example Test'
+  version: '1.0.0'
+paths:
+  /users:
+    post:
+      summary: 'Create user'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  x-bruno-var: true
+                name:
+                  type: string
+            examples:
+              alice:
+                summary: 'Alice'
+                value:
+                  email: 'alice@example.com'
+                  name: 'Alice'
+              bob:
+                summary: 'Bob'
+                value:
+                  email: 'bob@example.com'
+                  name: 'Bob'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      expect(folder.items).toHaveLength(2);
+
+      const aliceItem = folder.items.find((i) => i.name === 'Alice');
+      const bobItem = folder.items.find((i) => i.name === 'Bob');
+
+      // Both examples: email → {{?email}}, name kept as-is
+      expect(JSON.parse(aliceItem.request.body.json)).toEqual({ email: '{{?email}}', name: 'Alice' });
+      expect(JSON.parse(bobItem.request.body.json)).toEqual({ email: '{{?email}}', name: 'Bob' });
+    });
+
+    it('should apply x-bruno-var substitution for singular content.example', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Singular Test'
+  version: '1.0.0'
+paths:
+  /users:
+    post:
+      summary: 'Create user'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  x-bruno-var: true
+                name:
+                  type: string
+            example:
+              email: 'john@example.com'
+              name: 'John Doe'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      // singular example → single request (not a folder)
+      const request = brunoCollection.items[0];
+      expect(request.type).toBe('http-request');
+      const body = JSON.parse(request.request.body.json);
+      expect(body.email).toBe('{{?email}}');
+      expect(body.name).toBe('John Doe');
+    });
+
+    it('should recurse into nested objects for x-bruno-var substitution', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Nested Test'
+  version: '1.0.0'
+paths:
+  /users:
+    post:
+      summary: 'Create user'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                address:
+                  type: object
+                  properties:
+                    street:
+                      type: string
+                      x-bruno-var: true
+                    city:
+                      type: string
+                name:
+                  type: string
+            examples:
+              withAddress:
+                summary: 'With Address'
+                value:
+                  address:
+                    street: '123 Main St'
+                    city: 'Springfield'
+                  name: 'John Doe'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      const item = folder.items[0];
+      const body = JSON.parse(item.request.body.json);
+      expect(body.address.street).toBe('{{?street}}');
+      expect(body.address.city).toBe('Springfield');
+      expect(body.name).toBe('John Doe');
+    });
+
+    describe('request parameters', () => {
+      it('should replace query, path, and header param values with {{?name}} when x-bruno-var: true and example is non-null', () => {
+        const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Params Test'
+  version: '1.0.0'
+paths:
+  /users/{userId}:
+    post:
+      summary: 'Get user'
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            x-bruno-var: true
+          example: 'user-123'
+        - name: apiKey
+          in: header
+          schema:
+            type: string
+            x-bruno-var: true
+          example: 'secret-key'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            x-bruno-var: true
+          example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          example: 10
+      requestBody:
+        content:
+          application/json:
+            example:
+              name: 'John'
+      responses:
+        '200':
+          description: 'OK'
+`;
+        const brunoCollection = openApiToBruno(spec);
+        const request = brunoCollection.items[0];
+        expect(request.type).toBe('http-request');
+
+        const userId = request.request.params.find((p) => p.name === 'userId');
+        expect(userId.value).toBe('{{?userId}}');
+
+        const apiKey = request.request.headers.find((h) => h.name === 'apiKey');
+        expect(apiKey.value).toBe('{{?apiKey}}');
+
+        const page = request.request.params.find((p) => p.name === 'page');
+        expect(page.value).toBe('{{?page}}');
+
+        // limit has no x-bruno-var — keeps its example value
+        const limit = request.request.params.find((p) => p.name === 'limit');
+        expect(limit.value).toBe('10');
+      });
+
+      it('should not substitute param when example is absent or null', () => {
+        const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Bruno Var Params Null Test'
+  version: '1.0.0'
+paths:
+  /users:
+    post:
+      summary: 'Create user'
+      parameters:
+        - name: token
+          in: header
+          schema:
+            type: string
+            x-bruno-var: true
+        - name: tag
+          in: query
+          schema:
+            type: string
+            x-bruno-var: true
+          example: null
+      requestBody:
+        content:
+          application/json:
+            example:
+              name: 'John'
+      responses:
+        '200':
+          description: 'OK'
+`;
+        const brunoCollection = openApiToBruno(spec);
+        const request = brunoCollection.items[0];
+
+        // token has no example at all → no substitution
+        const token = request.request.headers.find((h) => h.name === 'token');
+        expect(token.value).not.toBe('{{?token}}');
+
+        // tag example is explicitly null → no substitution
+        const tag = request.request.params.find((p) => p.name === 'tag');
+        expect(tag.value).not.toBe('{{?tag}}');
       });
     });
   });

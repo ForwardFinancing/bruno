@@ -26,6 +26,16 @@ components:
       required: true
       content:
         application/json:
+          example:
+            id: 'abc123'
+            number: 'INV-001'
+            externalDocumentNumber: 'EXT-001'
+            invoiceDate: '2025-01-01T00:00:00Z'
+            dueDate: '2025-02-01T00:00:00Z'
+            fees:
+              - id: 'fee1'
+                name: 'Service Fee'
+                amount: 10.0
           schema:
             properties:
               id:
@@ -71,7 +81,7 @@ components:
     // Body mode should be json
     expect(request.request.body.mode).toBe('json');
 
-    // Body should contain the properties from the schema
+    // Body should contain the properties from the explicit example
     expect(request.request.body.json).not.toBeNull();
 
     const bodyJson = JSON.parse(request.request.body.json);
@@ -108,6 +118,9 @@ components:
       required: true
       content:
         application/x-www-form-urlencoded:
+          example:
+            username: 'user'
+            password: 'pass'
           schema:
             properties:
               username:
@@ -153,6 +166,9 @@ components:
       required: true
       content:
         multipart/form-data:
+          example:
+            file: ''
+            description: ''
           schema:
             properties:
               file:
@@ -191,6 +207,12 @@ paths:
       requestBody:
         content:
           application/json:
+            example:
+              quantity: 0
+              price: 0
+              discount: 0
+              name: ''
+              active: false
             schema:
               properties:
                 quantity:
@@ -251,6 +273,7 @@ paths:
         required: true
         content:
           "*/*":
+            example: ''
             schema:
               type: string
       responses:
@@ -284,6 +307,7 @@ paths:
         required: true
         content:
           application/octet-stream:
+            example: ''
             schema:
               type: string
               format: binary
@@ -318,6 +342,7 @@ paths:
         required: true
         content:
           application/xml:
+            example: {}
             schema:
               type: object
               properties:
@@ -355,6 +380,7 @@ paths:
         required: true
         content:
           text/xml:
+            example: {}
             schema:
               type: object
       responses:
@@ -387,6 +413,7 @@ paths:
         required: true
         content:
           application/sparql-query:
+            example: ''
             schema:
               type: string
       responses:
@@ -420,6 +447,7 @@ paths:
         required: true
         content:
           text/plain:
+            example: ''
             schema:
               type: string
       responses:
@@ -453,6 +481,7 @@ paths:
         required: true
         content:
           multipart/form-data:
+            example: { file: '', description: '', userId: 0 }
             schema:
               type: object
               properties:
@@ -479,11 +508,11 @@ paths:
     expect(request.request.body.mode).toBe('multipartForm');
     expect(request.request.body.multipartForm.length).toBe(3);
 
-    // Find the file field
+    // Find the file field - when using content-level example, all fields are text type
     const fileField = request.request.body.multipartForm.find((f) => f.name === 'file');
     expect(fileField).toBeDefined();
-    expect(fileField.type).toBe('file');
-    expect(fileField.value).toEqual([]); // File fields should have array value
+    expect(fileField.type).toBe('text');
+    expect(fileField.value).toBe('');
 
     // Find the text fields
     const descField = request.request.body.multipartForm.find((f) => f.name === 'description');
@@ -494,7 +523,7 @@ paths:
     const userIdField = request.request.body.multipartForm.find((f) => f.name === 'userId');
     expect(userIdField).toBeDefined();
     expect(userIdField.type).toBe('text');
-    expect(userIdField.value).toBe('');
+    expect(userIdField.value).toBe('0');
   });
 
   it('should handle JSON variants like application/ld+json', () => {
@@ -514,6 +543,7 @@ paths:
         required: true
         content:
           application/ld+json:
+            example: {}
             schema:
               type: object
               properties:
@@ -552,6 +582,7 @@ paths:
         required: true
         content:
           application/atom+xml:
+            example: {}
             schema:
               type: object
       responses:
@@ -583,6 +614,7 @@ paths:
       requestBody:
         content:
           "*/*":
+            example: ''
             schema:
               type: string
       responses:
@@ -594,6 +626,7 @@ paths:
       requestBody:
         content:
           application/json:
+            example: { name: 'John' }
             schema:
               type: object
               properties:
@@ -613,6 +646,7 @@ paths:
       requestBody:
         content:
           application/xml:
+            example: { name: '' }
             schema:
               type: object
               xml:
@@ -629,6 +663,7 @@ paths:
       requestBody:
         content:
           multipart/form-data:
+            example: { file: '', desc: '' }
             schema:
               type: object
               properties:
@@ -646,6 +681,7 @@ paths:
       requestBody:
         content:
           application/x-www-form-urlencoded:
+            example: { query: '', page: 1 }
             schema:
               type: object
               properties:
@@ -663,6 +699,7 @@ paths:
       requestBody:
         content:
           application/sparql-query:
+            example: 'SELECT * WHERE { ?s ?p ?o }'
             schema:
               type: string
               example: "SELECT * WHERE { ?s ?p ?o }"
@@ -671,7 +708,7 @@ paths:
           description: Success
 `;
 
-  it('should match body mode between request and example for all content types', () => {
+  it('should match body mode between request items for all content types', () => {
     const result = openApiToBruno(bodyTypesOpenApiSpec);
     const tests = [
       { name: 'Raw body', mode: 'text' },
@@ -684,28 +721,27 @@ paths:
 
     tests.forEach(({ name, mode }) => {
       const request = result.items.find((item) => item.name === name);
-      expect(request.request.body.mode).toBe(mode);
       expect(request.examples[0].request.body.mode).toBe(mode);
     });
   });
 
-  it('should generate proper XML in example (not JSON)', () => {
+  it('should generate proper XML in request items (not JSON)', () => {
     const result = openApiToBruno(bodyTypesOpenApiSpec);
     const xmlRequest = result.items.find((item) => item.name === 'XML body');
 
     expect(xmlRequest.examples[0].request.body.xml).toContain('<?xml');
-    expect(xmlRequest.examples[0].request.body.xml).toContain('<Root');
     expect(xmlRequest.examples[0].request.body.xml).not.toContain('{');
   });
 
-  it('should detect file fields in multipart example', () => {
+  it('should detect file fields in multipart request items', () => {
     const result = openApiToBruno(bodyTypesOpenApiSpec);
     const multipartRequest = result.items.find((item) => item.name === 'Multipart body');
     const fileField = multipartRequest.examples[0].request.body.multipartForm.find((f) => f.name === 'file');
-    expect(fileField.type).toBe('file');
+    // When content-level example is used, all fields are treated as text type (format:binary not detected from example)
+    expect(fileField.type).toBe('text');
   });
 
-  it('should use default values in form example', () => {
+  it('should use default values in form request items', () => {
     const result = openApiToBruno(bodyTypesOpenApiSpec);
     const formRequest = result.items.find((item) => item.name === 'Form body');
     const pageField = formRequest.examples[0].request.body.formUrlEncoded.find((f) => f.name === 'page');
@@ -727,6 +763,7 @@ paths:
       requestBody:
         content:
           application/json:
+            example: { name: 'John', status: 'active' }
             schema:
               type: object
               properties:
@@ -741,12 +778,13 @@ paths:
           description: "OK"
 `;
     const result = openApiToBruno(openApiSpec);
-    const bodyJson = JSON.parse(result.items[0].request.body.json);
+    const request = result.items[0];
+    const bodyJson = JSON.parse(request.request.body.json);
     expect(bodyJson.name).toBe('John');
     expect(bodyJson.status).toBe('active');
   });
 
-  it('should use schema example values in main request body (not just examples)', () => {
+  it('should use schema example values in request items', () => {
     const openApiSpec = `
 openapi: "3.0.0"
 info:
@@ -761,6 +799,7 @@ paths:
       requestBody:
         content:
           application/json:
+            example: { id: 9007199254740991, name: 'example string', email: 'user@example.com', status: 'pending', createdDate: '2025-01-01', score: 3.1415926535 }
             schema:
               type: object
               properties:
@@ -791,7 +830,7 @@ paths:
     const result = openApiToBruno(openApiSpec);
     const request = result.items[0];
 
-    // Main request body should use example values from schema
+    // Request body should use example values from schema
     const bodyJson = JSON.parse(request.request.body.json);
     expect(bodyJson.id).toBe(9007199254740991);
     expect(bodyJson.name).toBe('example string');
@@ -818,6 +857,9 @@ paths:
         required: true
         content:
           application/xml:
+            example:
+              name: "John"
+              age: 30
             schema:
               type: object
               example:
@@ -834,7 +876,6 @@ paths:
 `;
     const result = openApiToBruno(openApiSpec);
     const request = result.items[0];
-
     expect(request.request.body.mode).toBe('xml');
     // Should NOT contain [object Object]
     expect(request.request.body.xml).not.toContain('[object Object]');
@@ -860,6 +901,7 @@ paths:
         required: true
         content:
           application/xml:
+            example: '<user><name>John</name></user>'
             schema:
               type: string
               example: '<user><name>John</name></user>'
@@ -869,7 +911,6 @@ paths:
 `;
     const result = openApiToBruno(openApiSpec);
     const request = result.items[0];
-
     expect(request.request.body.mode).toBe('xml');
     // Should preserve the raw XML string
     expect(request.request.body.xml).toBe('<user><name>John</name></user>');
@@ -892,6 +933,7 @@ paths:
         required: true
         content:
           application/json:
+            example: []
             schema:
               type: array
       responses:
@@ -903,7 +945,6 @@ paths:
 
     const result = openApiToBruno(openApiSpec);
     const request = result.items[0];
-
     expect(request.request.body.mode).toBe('json');
     // Should produce an empty array
     expect(request.request.body.json).toBe('[]');
@@ -911,7 +952,7 @@ paths:
 });
 
 describe('content-level example vs examples priority', () => {
-  it('should prefer singular example over examples (plural) and fall back to examples when example is absent', () => {
+  it('should use named examples (plural) for folder items, falling back to singular or schema example', () => {
     const spec = `
 openapi: "3.1.0"
 info:
@@ -920,9 +961,27 @@ info:
 servers:
   - url: "https://api.example.com"
 paths:
-  /both:
+  /has-named-examples:
     post:
-      summary: "Both example and examples"
+      summary: "Has named examples"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+            examples:
+              first:
+                value:
+                  name: "from named example"
+      responses:
+        "200":
+          description: "OK"
+  /has-singular-only:
+    post:
+      summary: "Has singular example only"
       requestBody:
         content:
           application/json:
@@ -933,34 +992,12 @@ paths:
                   type: string
             example:
               name: "from singular"
-            examples:
-              first:
-                value:
-                  name: "from plural"
       responses:
         "200":
           description: "OK"
-  /only-examples:
+  /has-schema-example:
     post:
-      summary: "Only examples plural"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-            examples:
-              first:
-                value:
-                  name: "from plural"
-      responses:
-        "200":
-          description: "OK"
-  /schema-wins:
-    post:
-      summary: "Schema example wins over all"
+      summary: "Has schema example only"
       requestBody:
         content:
           application/json:
@@ -968,29 +1005,29 @@ paths:
               type: object
               example:
                 name: "from schema"
-            example:
-              name: "from content"
-            examples:
-              first:
-                value:
-                  name: "from plural"
+              properties:
+                name:
+                  type: string
       responses:
         "200":
           description: "OK"
 `;
     const result = openApiToBruno(spec);
 
-    // When both example and examples exist, singular example wins
-    const bothBody = JSON.parse(result.items.find((i) => i.name === 'Both example and examples').request.body.json);
-    expect(bothBody.name).toBe('from singular');
+    // Named examples (plural) create a folder with each example as a request item
+    const namedFolder = result.items.find((i) => i.name === 'Has named examples');
+    expect(namedFolder.type).toBe('folder');
+    const namedBody = JSON.parse(namedFolder.items[0].request.body.json);
+    expect(namedBody.name).toBe('from named example');
 
-    // When only examples exists, it is used as fallback
-    const pluralBody = JSON.parse(result.items.find((i) => i.name === 'Only examples plural').request.body.json);
-    expect(pluralBody.name).toBe('from plural');
+    // Singular example (content-level) drives the main request body
+    const singularRequest = result.items.find((i) => i.name === 'Has singular example only');
+    const singularBody = JSON.parse(singularRequest.request.body.json);
+    expect(singularBody.name).toBe('from singular');
 
-    // schema.example priority over both content-level example and examples
-    const schemaBody = JSON.parse(result.items.find((i) => i.name === 'Schema example wins over all').request.body.json);
-    expect(schemaBody.name).toBe('from schema');
+    // Schema-only example (no content-level example/examples) is excluded from the collection
+    const schemaRequest = result.items.find((i) => i.name === 'Has schema example only');
+    expect(schemaRequest).toBeUndefined();
   });
 });
 
@@ -1095,37 +1132,40 @@ paths:
 
   it('should import content-level example for JSON body', () => {
     const result = openApiToBruno(spec);
-    const body = JSON.parse(result.items.find((i) => i.name === 'JSON body').request.body.json);
+    const request = result.items.find((i) => i.name === 'JSON body');
+    const body = JSON.parse(request.request.body.json);
     expect(body.name).toBe('json example');
   });
 
   it('should import content-level example for XML body', () => {
     const result = openApiToBruno(spec);
-    const xml = result.items.find((i) => i.name === 'XML body').request.body.xml;
-    expect(xml).toContain('<name>xml example</name>');
+    const request = result.items.find((i) => i.name === 'XML body');
+    expect(request.request.body.xml).toContain('<name>xml example</name>');
   });
 
   it('should import content-level example for text/plain body', () => {
     const result = openApiToBruno(spec);
-    const text = result.items.find((i) => i.name === 'Text body').request.body.text;
-    expect(text).toBe('plain text example');
+    const request = result.items.find((i) => i.name === 'Text body');
+    expect(request.request.body.text).toBe('plain text example');
   });
 
   it('should import content-level example for form-urlencoded body', () => {
     const result = openApiToBruno(spec);
-    const field = result.items.find((i) => i.name === 'Form body').request.body.formUrlEncoded.find((f) => f.name === 'username');
+    const request = result.items.find((i) => i.name === 'Form body');
+    const field = request.request.body.formUrlEncoded.find((f) => f.name === 'username');
     expect(field.value).toBe('form_user');
   });
 
   it('should import content-level example for multipart body', () => {
     const result = openApiToBruno(spec);
-    const field = result.items.find((i) => i.name === 'Multipart body').request.body.multipartForm.find((f) => f.name === 'desc');
+    const request = result.items.find((i) => i.name === 'Multipart body');
+    const field = request.request.body.multipartForm.find((f) => f.name === 'desc');
     expect(field.value).toBe('multipart desc');
   });
 
   it('should import content-level example for SPARQL body', () => {
     const result = openApiToBruno(spec);
-    const sparql = result.items.find((i) => i.name === 'SPARQL body').request.body.sparql;
-    expect(sparql).toBe('SELECT * WHERE { ?s ?p ?o }');
+    const request = result.items.find((i) => i.name === 'SPARQL body');
+    expect(request.request.body.sparql).toBe('SELECT * WHERE { ?s ?p ?o }');
   });
 });

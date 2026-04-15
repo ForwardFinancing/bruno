@@ -8,6 +8,7 @@ import {
   BODY_TYPE_HANDLERS,
   getExampleFromSchema,
   createBrunoExample,
+  populateRequestBody,
   groupRequestsByTags,
   groupRequestsByPath
 } from './openapi-common';
@@ -16,6 +17,79 @@ const getContentLevelExample = (bodyContent) => {
   if (bodyContent.example !== undefined) return bodyContent.example;
   const firstExample = Object.values(bodyContent.examples ?? {})[0];
   return firstExample?.value;
+};
+
+/**
+ * Recursively replaces values in `obj` with `{{?fieldName}}` where the corresponding
+ * schema property has `x-bruno-var: true` and the example value is non-null.
+ */
+const substituteVarsInObject = (obj, schemaProperties, exampleObj) => {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const propSchema = schemaProperties ? schemaProperties[key] : undefined;
+    const exampleValue = exampleObj ? exampleObj[key] : undefined;
+    if (propSchema && propSchema['x-bruno-var'] === true && exampleValue !== null && exampleValue !== undefined) {
+      result[key] = `{{?${key}}}`;
+    } else if (value !== null && value !== undefined && typeof value === 'object' && !Array.isArray(value) && propSchema && propSchema.properties) {
+      result[key] = substituteVarsInObject(value, propSchema.properties, exampleValue ?? {});
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+};
+
+/**
+ * Applies x-bruno-var substitution to a parameter entries array in place.
+ * When the schema has x-bruno-var: true and the raw example is non-null,
+ * collapses entries to a single {{?paramName}} placeholder.
+ */
+const applyBrunoVarToParamEntries = (entries, paramName, schema, rawExampleValue) => {
+  if (schema && schema['x-bruno-var'] === true && rawExampleValue !== null && rawExampleValue !== undefined) {
+    entries.splice(0, entries.length, { value: `{{?${paramName}}}`, enabled: true });
+  }
+};
+
+/**
+ * Applies x-bruno-var substitutions to a Bruno request body in place.
+ * Fields whose schema property has `x-bruno-var: true` and whose example value is
+ * non-null are replaced with `{{?field_name}}` in the generated body.
+ */
+const applyBrunoVarSubstitutionsToBody = (body, exampleValue, fieldSchema) => {
+  if (!fieldSchema || !exampleValue || typeof exampleValue !== 'object' || Array.isArray(exampleValue)) return;
+
+  const properties = fieldSchema.properties || {};
+
+  if (body.mode === 'json' && body.json) {
+    try {
+      const parsed = JSON.parse(body.json);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const substituted = substituteVarsInObject(parsed, properties, exampleValue);
+        body.json = JSON.stringify(substituted, null, 2);
+      }
+    } catch (_e) {
+      // ignore parse errors — don't break body population
+    }
+  } else if (body.mode === 'formUrlEncoded' && body.formUrlEncoded) {
+    body.formUrlEncoded = body.formUrlEncoded.map((item) => {
+      const propSchema = properties[item.name];
+      const fieldVal = exampleValue[item.name];
+      if (propSchema && propSchema['x-bruno-var'] === true && fieldVal !== null && fieldVal !== undefined) {
+        return { ...item, value: `{{?${item.name}}}` };
+      }
+      return item;
+    });
+  } else if (body.mode === 'multipartForm' && body.multipartForm) {
+    body.multipartForm = body.multipartForm.map((item) => {
+      const propSchema = properties[item.name];
+      const fieldVal = exampleValue[item.name];
+      if (propSchema && propSchema['x-bruno-var'] === true && fieldVal !== null && fieldVal !== undefined) {
+        return { ...item, value: `{{?${item.name}}}` };
+      }
+      return item;
+    });
+  }
 };
 
 // Extract a representative value from a schema property (used for request body properties)
@@ -260,6 +334,8 @@ const transformOpenapiRequestItem = (request, usedNames = new Set(), options = {
           : prop;
         const tempParam = { ...param, example: undefined, examples: undefined, name: propName, schema: propSchema, required: isRequired };
         const entries = getParameterEntries(tempParam);
+        // propSchema.example is the merged example value (from the property or parent schema example)
+        applyBrunoVarToParamEntries(entries, propName, prop, propSchema.example);
 
         entries.forEach((entry) => {
           if (param.in === 'query' || param.in === 'querystring') {
@@ -293,6 +369,11 @@ const transformOpenapiRequestItem = (request, usedNames = new Set(), options = {
       });
     } else {
       const entries = getParameterEntries(param);
+      // Resolve the raw example value: param.example → param.examples[0].value → schema.example
+      const rawParamExample = param.example !== undefined ? param.example
+        : param.examples ? (Object.values(param.examples)[0]?.value)
+          : param.schema?.example;
+      applyBrunoVarToParamEntries(entries, param.name, param.schema || {}, rawParamExample);
 
       entries.forEach((entry) => {
         if (param.in === 'query' || param.in === 'querystring') {
@@ -439,12 +520,10 @@ const transformOpenapiRequestItem = (request, usedNames = new Set(), options = {
     const mimeType = Object.keys(content)[0];
     const bodyContent = content[mimeType] || {};
     let bodySchema = bodyContent.schema;
+    const contentExample = getContentLevelExample(bodyContent);
 
-    if (bodySchema?.example === undefined) {
-      const contentExample = getContentLevelExample(bodyContent);
-      if (contentExample !== undefined) {
-        bodySchema = { ...bodySchema, example: contentExample };
-      }
+    if (bodySchema?.example === undefined && contentExample !== undefined) {
+      bodySchema = { ...bodySchema, example: contentExample };
     }
 
     // Normalize: lowercase (object keys may vary in case)
@@ -455,6 +534,11 @@ const transformOpenapiRequestItem = (request, usedNames = new Set(), options = {
     if (handler) {
       brunoRequestItem.request.body.mode = handler.mode;
       handler.handle(brunoRequestItem.request.body, bodySchema);
+      // For singular example requests, apply x-bruno-var substitutions now.
+      // Named-example (folder) requests apply substitutions per-item after populateRequestBody.
+      if (contentExample !== null && contentExample !== undefined) {
+        applyBrunoVarSubstitutionsToBody(brunoRequestItem.request.body, contentExample, bodyContent.schema);
+      }
     }
   }
 
@@ -567,29 +651,35 @@ const transformOpenapiRequestItem = (request, usedNames = new Set(), options = {
             const exampleValue = example.value !== undefined ? example.value : example;
             requestBodyExamples.push({
               key: exampleKey,
+              isExplicit: true,
               schema: { example: exampleValue }, // Wrap in schema format for BODY_TYPE_HANDLERS
               summary: example.summary,
               description: example.description,
-              contentType: contentType
+              contentType: contentType,
+              fieldSchema: content.schema || null // Actual schema — checked for x-bruno-var
             });
           });
         } else if (content.example !== undefined) {
           // Single request body example - wrap in schema-like object
           requestBodyExamples.push({
             key: null,
+            isExplicit: true,
             schema: { example: content.example }, // Wrap in schema format for BODY_TYPE_HANDLERS
             summary: null,
             description: null,
-            contentType: contentType
+            contentType: contentType,
+            fieldSchema: content.schema || null // Actual schema — checked for x-bruno-var
           });
         } else if (content.schema) {
-          // Schema-based request body - pass schema directly
+          // Schema-based request body - no explicit example provided
           requestBodyExamples.push({
             key: null,
+            isExplicit: false,
             schema: content.schema,
             summary: null,
             description: null,
-            contentType: contentType
+            contentType: contentType,
+            fieldSchema: content.schema || null
           });
         }
       });
@@ -659,9 +749,84 @@ const transformOpenapiRequestItem = (request, usedNames = new Set(), options = {
       });
     }
 
-    // Only add examples array if there are examples
-    if (examples.length > 0) {
+    // Only include operations that have at least one explicit request body example.
+    // Operations with no requestBody, or with only a schema (no example/examples), are excluded.
+    const hasExplicitRequestBodyExamples = requestBodyExamples.some((rb) => rb.isExplicit);
+    if (!hasExplicitRequestBodyExamples) {
+      return null;
+    }
+
+    // If there are named request body examples, convert the operation to a folder
+    // with each example as a request item. Otherwise keep as a single request.
+    const hasNamedRequestBodyExamples = requestBodyExamples.some((rb) => rb.key !== null);
+
+    if (examples.length > 0 && !hasNamedRequestBodyExamples) {
       brunoRequestItem.examples = examples;
+    }
+
+    if (hasNamedRequestBodyExamples) {
+      const namedRequestBodyExamples = requestBodyExamples.filter((rb) => rb.key !== null);
+      const folderUsedNames = new Set();
+      const folderItems = namedRequestBodyExamples.map((rbExample) => {
+        let itemName = rbExample.summary || rbExample.key;
+        if (folderUsedNames.has(itemName)) {
+          let counter = 1;
+          while (folderUsedNames.has(`${itemName} (${counter})`)) counter++;
+          itemName = `${itemName} (${counter})`;
+        }
+        folderUsedNames.add(itemName);
+
+        const body = {
+          mode: brunoRequestItem.request.body.mode,
+          json: brunoRequestItem.request.body.json,
+          text: brunoRequestItem.request.body.text,
+          xml: brunoRequestItem.request.body.xml,
+          sparql: brunoRequestItem.request.body.sparql || null,
+          formUrlEncoded: (brunoRequestItem.request.body.formUrlEncoded || []).map((item) => ({ ...item })),
+          multipartForm: (brunoRequestItem.request.body.multipartForm || []).map((item) => ({
+            ...item,
+            value: Array.isArray(item.value) ? [...item.value] : item.value
+          }))
+        };
+        populateRequestBody({ body, bodySchema: rbExample.schema, contentType: rbExample.contentType });
+        // Apply x-bruno-var substitutions: replace field values with {{?field_name}}
+        // for schema properties marked x-bruno-var: true when the example value is non-null
+        applyBrunoVarSubstitutionsToBody(body, rbExample.schema?.example, rbExample.fieldSchema);
+
+        return {
+          uid: uuid(),
+          name: itemName,
+          type: 'http-request',
+          request: {
+            ...brunoRequestItem.request,
+            headers: [...(brunoRequestItem.request.headers || [])],
+            params: [...(brunoRequestItem.request.params || [])],
+            body
+          }
+        };
+      });
+
+      return {
+        uid: uuid(),
+        name: operationName,
+        type: 'folder',
+        root: {
+          request: {
+            auth: {
+              mode: 'inherit',
+              basic: null,
+              bearer: null,
+              digest: null,
+              apikey: null,
+              oauth2: null
+            }
+          },
+          meta: {
+            name: operationName
+          }
+        },
+        items: folderItems
+      };
     }
   }
 
@@ -901,11 +1066,11 @@ export const parseOpenApiCollection = (data, options = {}) => {
               name: group.name
             }
           },
-          items: group.requests.map((req) => transformOpenapiRequestItem(req, usedNames, options))
+          items: group.requests.map((req) => transformOpenapiRequestItem(req, usedNames, options)).filter(Boolean)
         };
-      });
+      }).filter((folder) => folder.items.length > 0);
 
-      let ungroupedItems = ungroupedRequests.map((req) => transformOpenapiRequestItem(req, usedNames, options));
+      let ungroupedItems = ungroupedRequests.map((req) => transformOpenapiRequestItem(req, usedNames, options)).filter(Boolean);
       let brunoCollectionItems = brunoFolders.concat(ungroupedItems);
       brunoCollection.items = brunoCollectionItems;
     }

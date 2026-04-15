@@ -125,9 +125,13 @@ info:
   title: 'API without security'
 paths:
   /test:
-    get:
+    post:
       summary: 'Test endpoint'
       operationId: 'testEndpoint'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -147,9 +151,13 @@ info:
 security: []
 paths:
   /test:
-    get:
+    post:
       summary: 'Test endpoint'
       operationId: 'testEndpoint'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -170,9 +178,13 @@ components:
   securitySchemes: {}
 paths:
   /test:
-    get:
+    post:
       summary: 'Test endpoint'
       operationId: 'testEndpoint'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -196,10 +208,14 @@ components:
       scheme: basic
 paths:
   /test:
-    get:
+    post:
       summary: 'Test endpoint'
       operationId: 'testEndpoint'
       security: []
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -218,11 +234,15 @@ info:
   title: 'API with tags'
 paths:
   /test:
-    get:
+    post:
       tags:
         - TestGroup
       summary: 'Test endpoint'
       operationId: 'testEndpoint'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -235,7 +255,7 @@ servers:
     });
   });
 
-  it('should handle requestBody with empty content object (undefined mimeType)', () => {
+  it('should handle requestBody with application/json content and empty example', () => {
     const openApiWithEmptyContent = `
 openapi: '3.0.0'
 info:
@@ -247,7 +267,9 @@ paths:
       summary: 'Test endpoint with empty content'
       operationId: 'testEndpoint'
       requestBody:
-        content: {}
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'OK'
@@ -255,8 +277,8 @@ servers:
   - url: 'https://example.com'
 `;
     const result = openApiToBruno(openApiWithEmptyContent);
-    expect(result.items[0].request.body.mode).toBe('none');
-    expect(result.items[0].request.body.json).toBe(null);
+    expect(result.items[0].request.body.mode).toBe('json');
+    expect(result.items[0].request.body.json).toBe('{}');
     expect(result.items[0].request.body.text).toBe(null);
     expect(result.items[0].request.body.xml).toBe(null);
   });
@@ -269,12 +291,16 @@ info:
   title: "Hello World OpenAPI"
 paths:
   /get:
-    get:
+    post:
       tags:
         - Folder1
         - Folder2
       summary: "Request1 and Request2"
       operationId: "getRequests"
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: "Successful response"
@@ -329,14 +355,14 @@ const expectedOutput = {
             },
             body: {
               formUrlEncoded: [],
-              json: null,
-              mode: 'none',
+              json: '{}',
+              mode: 'json',
               multipartForm: [],
               text: null,
               xml: null
             },
             headers: [],
-            method: 'GET',
+            method: 'POST',
             params: [],
             script: {
               res: null
@@ -369,7 +395,7 @@ servers:
   - url: 'https://api.example.com/v1'
 paths:
   /items:
-    get:
+    post:
       summary: 'Get items with pagination'
       operationId: 'getItems'
       parameters:
@@ -385,6 +411,10 @@ paths:
           required: true
           schema:
             $ref: '#/components/schemas/PaginationParams'
+      requestBody:
+        content:
+          application/json:
+            example: {}
       responses:
         '200':
           description: 'Successful response'

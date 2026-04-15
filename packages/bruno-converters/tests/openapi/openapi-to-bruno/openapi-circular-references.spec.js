@@ -63,6 +63,7 @@ const circularRefsData = {
         requestBody: {
           content: {
             'application/json': {
+              example: {},
               schema: {
                 $ref: '#/components/schemas/schema_1'
               }
@@ -186,6 +187,7 @@ const complexCircularRefsData = {
         requestBody: {
           content: {
             'application/json': {
+              example: {},
               schema: {
                 $ref: '#/components/schemas/schema_1'
               }

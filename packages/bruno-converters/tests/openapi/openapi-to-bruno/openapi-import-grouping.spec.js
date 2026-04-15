@@ -7,16 +7,30 @@ const openApiSpec = {
   servers: [{ url: 'https://api.example.com' }],
   paths: {
     '/{id}': {
-      get: {
+      post: {
         summary: 'Get by ID',
         operationId: 'getById',
+        requestBody: {
+          content: {
+            'application/json': {
+              example: {}
+            }
+          }
+        },
         responses: { 200: { description: 'OK' } }
       }
     },
     '/{id}/{subId}': {
-      get: {
+      post: {
         summary: 'Get by ID and sub ID',
         operationId: 'getByIdAndSubId',
+        requestBody: {
+          content: {
+            'application/json': {
+              example: {}
+            }
+          }
+        },
         responses: { 200: { description: 'OK' } }
       }
     }
