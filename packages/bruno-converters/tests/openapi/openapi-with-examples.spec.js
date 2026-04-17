@@ -12,11 +12,14 @@ describe('OpenAPI with Examples', () => {
 
     expect(brunoCollection).toBeDefined();
     expect(brunoCollection.name).toBe('API with Examples');
-    expect(brunoCollection.items).toHaveLength(1); // Only POST /users remains
+    // GET /users (no params, no body), POST /users folder, GET /users/{id} (has param example)
+    expect(brunoCollection.items).toHaveLength(3);
 
-    // GET /users is excluded (no requestBody examples)
+    // GET /users has no params and no requestBody → included as a plain request
     const getUsersRequest = brunoCollection.items.find((item) => item.name === 'Get all users');
-    expect(getUsersRequest).toBeUndefined();
+    expect(getUsersRequest).toBeDefined();
+    expect(getUsersRequest.type).toBe('http-request');
+    expect(getUsersRequest.request.body.mode).toBe('none');
 
     // POST /users becomes a folder with one item per named requestBody example
     const createUserFolder = brunoCollection.items.find((item) => item.name === 'Create a new user');
@@ -32,6 +35,11 @@ describe('OpenAPI with Examples', () => {
     const invalidUserRequest = createUserFolder.items.find((item) => item.name === 'Invalid User');
     expect(invalidUserRequest).toBeDefined();
     expect(JSON.parse(invalidUserRequest.request.body.json)).toEqual({ name: '', email: 'invalid-email' });
+
+    // GET /users/{id} has a path param with example: 123 → included
+    const getUserByIdRequest = brunoCollection.items.find((item) => item.name === 'Get user by ID');
+    expect(getUserByIdRequest).toBeDefined();
+    expect(getUserByIdRequest.type).toBe('http-request');
   });
 
   it('should handle OpenAPI examples with different content types', () => {
@@ -115,8 +123,8 @@ servers:
     expect(JSON.parse(item.request.body.json)).toEqual({ message: 'test' });
   });
 
-  it('should exclude operations without explicit request body examples', () => {
-    const openApiWithoutExamples = `
+  it('should include requests with no parameters and no requestBody', () => {
+    const spec = `
 openapi: '3.0.0'
 info:
   version: '1.0.0'
@@ -137,8 +145,11 @@ servers:
   - url: 'https://api.example.com'
 `;
 
-    const brunoCollection = openApiToBruno(openApiWithoutExamples);
-    expect(brunoCollection.items).toHaveLength(0);
+    const brunoCollection = openApiToBruno(spec);
+    // No params, no requestBody → included as a plain request
+    expect(brunoCollection.items).toHaveLength(1);
+    expect(brunoCollection.items[0].type).toBe('http-request');
+    expect(brunoCollection.items[0].name).toBe('Test endpoint');
   });
 
   it('should support path-based grouping when specified', () => {
@@ -451,22 +462,11 @@ servers:
       const brunoCollection = openApiToBruno(openApiWithSingleRequestBody);
       const request = brunoCollection.items[0];
 
-      // No named request body examples, stays as request with .examples
-      expect(request.examples).toBeDefined();
-      expect(request.examples).toHaveLength(2);
-
-      // Both examples should have the same request body
-      const createdExample = request.examples.find((ex) => ex.name === 'User Created');
-      expect(createdExample).toBeDefined();
-      expect(createdExample.request.body.mode).toBe('json');
-      expect(JSON.parse(createdExample.request.body.json)).toEqual({
-        name: 'John Doe',
-        email: 'john@example.com'
-      });
-
-      const duplicateExample = request.examples.find((ex) => ex.name === 'Duplicate User');
-      expect(duplicateExample).toBeDefined();
-      expect(JSON.parse(duplicateExample.request.body.json)).toEqual({
+      // Singular requestBody example → included as a single request, no response-example panel
+      expect(request).toBeDefined();
+      expect(request.examples).toBeUndefined();
+      expect(request.request.body.mode).toBe('json');
+      expect(JSON.parse(request.request.body.json)).toEqual({
         name: 'John Doe',
         email: 'john@example.com'
       });
@@ -646,8 +646,8 @@ servers:
       });
     });
 
-    it('should exclude operations with no request body', () => {
-      const openApiWithoutRequestBody = `
+    it('should include requests with no requestBody when there are no parameters', () => {
+      const spec = `
 openapi: '3.0.0'
 info:
   version: '1.0.0'
@@ -671,9 +671,11 @@ servers:
   - url: 'https://api.example.com'
 `;
 
-      const brunoCollection = openApiToBruno(openApiWithoutRequestBody);
-      // No requestBody → excluded
-      expect(brunoCollection.items).toHaveLength(0);
+      const brunoCollection = openApiToBruno(spec);
+      // No params, no requestBody → included as a plain request
+      expect(brunoCollection.items).toHaveLength(1);
+      expect(brunoCollection.items[0].type).toBe('http-request');
+      expect(brunoCollection.items[0].name).toBe('Get users');
     });
 
     it('should handle request body with singular example and multiple response examples', () => {
@@ -724,16 +726,221 @@ servers:
       const brunoCollection = openApiToBruno(openApiWithSingularExample);
       const request = brunoCollection.items[0];
 
-      // Singular (non-named) request body example, stays as request with .examples
-      expect(request.examples).toBeDefined();
-      expect(request.examples).toHaveLength(3);
-
-      // All examples should have the same request body
-      const requestBodyValue = { name: 'Jane Doe', email: 'jane@example.com' };
-      request.examples.forEach((example) => {
-        expect(example.request.body.mode).toBe('json');
-        expect(JSON.parse(example.request.body.json)).toEqual(requestBodyValue);
+      // Singular requestBody example → included as a single request, no response-example panel
+      expect(request).toBeDefined();
+      expect(request.examples).toBeUndefined();
+      expect(request.request.body.mode).toBe('json');
+      expect(JSON.parse(request.request.body.json)).toEqual({
+        name: 'Jane Doe',
+        email: 'jane@example.com'
       });
+    });
+  });
+
+  describe('cross-source key grouping', () => {
+    it('should produce one request per named key, merging param and body examples by key', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Key Grouping Test'
+  version: '1.0.0'
+paths:
+  /search:
+    post:
+      summary: 'Search'
+      parameters:
+        - name: searchType
+          in: query
+          schema:
+            type: string
+          examples:
+            SimpleSearch:
+              summary: 'Use for basic queries'
+              value: 'text'
+            DeepSearch:
+              summary: 'Use for historical data'
+              value: 'regex'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+          examples:
+            SimpleSearch:
+              value: 10
+            DeepSearch:
+              value: 1000
+      requestBody:
+        content:
+          application/json:
+            examples:
+              SimpleSearch:
+                summary: 'Body for simple search'
+                value:
+                  role: 'superuser'
+                  permissions:
+                    - all
+              DeepSearch:
+                summary: 'Body for deep search'
+                value:
+                  role: 'user'
+                  permissions:
+                    - read
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      expect(folder.type).toBe('folder');
+      expect(folder.items).toHaveLength(2);
+
+      const simple = folder.items.find((i) => i.name === 'Body for simple search');
+      expect(simple).toBeDefined();
+      expect(simple.request.params.find((p) => p.name === 'searchType')?.value).toBe('text');
+      expect(simple.request.params.find((p) => p.name === 'limit')?.value).toBe('10');
+      expect(JSON.parse(simple.request.body.json)).toEqual({ role: 'superuser', permissions: ['all'] });
+
+      const deep = folder.items.find((i) => i.name === 'Body for deep search');
+      expect(deep).toBeDefined();
+      expect(deep.request.params.find((p) => p.name === 'searchType')?.value).toBe('regex');
+      expect(deep.request.params.find((p) => p.name === 'limit')?.value).toBe('1000');
+      expect(JSON.parse(deep.request.body.json)).toEqual({ role: 'user', permissions: ['read'] });
+    });
+
+    it('should fall back to the default (singular) example when a key is absent from a source', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Key Fallback Test'
+  version: '1.0.0'
+paths:
+  /search:
+    post:
+      summary: 'Search'
+      parameters:
+        - name: mode
+          in: query
+          schema:
+            type: string
+          examples:
+            Alpha:
+              value: 'alpha'
+            Beta:
+              value: 'beta'
+        - name: format
+          in: query
+          schema:
+            type: string
+          example: 'json'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              Alpha:
+                value:
+                  q: 'hello'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      expect(folder.type).toBe('folder');
+      // Both Alpha and Beta come from param keys; Beta is missing from body → uses default (Alpha body)
+      expect(folder.items).toHaveLength(2);
+
+      const alpha = folder.items.find((i) => i.name === 'Alpha');
+      expect(alpha.request.params.find((p) => p.name === 'mode')?.value).toBe('alpha');
+      // format has only a singular example → same default value for all keys
+      expect(alpha.request.params.find((p) => p.name === 'format')?.value).toBe('json');
+      expect(JSON.parse(alpha.request.body.json)).toEqual({ q: 'hello' });
+
+      const beta = folder.items.find((i) => i.name === 'Beta');
+      expect(beta.request.params.find((p) => p.name === 'mode')?.value).toBe('beta');
+      expect(beta.request.params.find((p) => p.name === 'format')?.value).toBe('json');
+      // Beta missing from body → falls back to the first named body example (Alpha)
+      expect(JSON.parse(beta.request.body.json)).toEqual({ q: 'hello' });
+    });
+
+    it('should produce a folder from param-only named examples even when there is no requestBody', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Param-Only Examples Test'
+  version: '1.0.0'
+paths:
+  /items:
+    post:
+      summary: 'List items'
+      parameters:
+        - name: filter
+          in: query
+          schema:
+            type: string
+          examples:
+            Active:
+              summary: 'Active items'
+              value: 'active'
+            Archived:
+              summary: 'Archived items'
+              value: 'archived'
+      requestBody:
+        content:
+          application/json:
+            example:
+              tag: 'default'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      expect(folder.type).toBe('folder');
+      expect(folder.items).toHaveLength(2);
+
+      const active = folder.items.find((i) => i.name === 'Active items');
+      expect(active).toBeDefined();
+      expect(active.request.params.find((p) => p.name === 'filter')?.value).toBe('active');
+
+      const archived = folder.items.find((i) => i.name === 'Archived items');
+      expect(archived).toBeDefined();
+      expect(archived.request.params.find((p) => p.name === 'filter')?.value).toBe('archived');
+    });
+
+    it('should use param summary as item name when body has no summary for the key', () => {
+      const spec = `
+openapi: '3.0.0'
+info:
+  title: 'Summary Fallback Test'
+  version: '1.0.0'
+paths:
+  /things:
+    post:
+      summary: 'Create thing'
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+          examples:
+            Fast:
+              summary: 'Fast mode'
+              value: 'fast'
+      requestBody:
+        content:
+          application/json:
+            examples:
+              Fast:
+                value:
+                  payload: 'x'
+      responses:
+        '200':
+          description: 'OK'
+`;
+      const brunoCollection = openApiToBruno(spec);
+      const folder = brunoCollection.items[0];
+      // body example has no summary → falls back to param summary "Fast mode"
+      expect(folder.items[0].name).toBe('Fast mode');
     });
   });
 

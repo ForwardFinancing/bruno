@@ -708,46 +708,6 @@ paths:
           description: Success
 `;
 
-  it('should match body mode between request items for all content types', () => {
-    const result = openApiToBruno(bodyTypesOpenApiSpec);
-    const tests = [
-      { name: 'Raw body', mode: 'text' },
-      { name: 'JSON body', mode: 'json' },
-      { name: 'XML body', mode: 'xml' },
-      { name: 'Multipart body', mode: 'multipartForm' },
-      { name: 'Form body', mode: 'formUrlEncoded' },
-      { name: 'SPARQL body', mode: 'sparql' }
-    ];
-
-    tests.forEach(({ name, mode }) => {
-      const request = result.items.find((item) => item.name === name);
-      expect(request.examples[0].request.body.mode).toBe(mode);
-    });
-  });
-
-  it('should generate proper XML in request items (not JSON)', () => {
-    const result = openApiToBruno(bodyTypesOpenApiSpec);
-    const xmlRequest = result.items.find((item) => item.name === 'XML body');
-
-    expect(xmlRequest.examples[0].request.body.xml).toContain('<?xml');
-    expect(xmlRequest.examples[0].request.body.xml).not.toContain('{');
-  });
-
-  it('should detect file fields in multipart request items', () => {
-    const result = openApiToBruno(bodyTypesOpenApiSpec);
-    const multipartRequest = result.items.find((item) => item.name === 'Multipart body');
-    const fileField = multipartRequest.examples[0].request.body.multipartForm.find((f) => f.name === 'file');
-    // When content-level example is used, all fields are treated as text type (format:binary not detected from example)
-    expect(fileField.type).toBe('text');
-  });
-
-  it('should use default values in form request items', () => {
-    const result = openApiToBruno(bodyTypesOpenApiSpec);
-    const formRequest = result.items.find((item) => item.name === 'Form body');
-    const pageField = formRequest.examples[0].request.body.formUrlEncoded.find((f) => f.name === 'page');
-    expect(pageField.value).toBe('1');
-  });
-
   it('should use example and enum values from schema in request body', () => {
     const openApiSpec = `
 openapi: "3.0.0"
