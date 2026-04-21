@@ -3,7 +3,7 @@ const path = require('path');
 const chalk = require('chalk');
 const jsyaml = require('js-yaml');
 const axios = require('axios');
-const { openApiToBruno, wsdlToBruno } = require('@usebruno/converters');
+const { openApiToBruno, wsdlToBruno } = require('@forwardfinancing/bruno-converters');
 const { exists, isDirectory, sanitizeName } = require('../utils/filesystem');
 const { createCollectionFromBrunoObject } = require('../utils/collection');
 

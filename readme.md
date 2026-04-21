@@ -9,7 +9,7 @@ bru import openapi --source path/to/openapi.yaml --output ./my-collection --coll
 
 ## How to make a new release?
 
-- Bump the version in packages/bruno-cli/package.json
+- Bump the version in packages/bruno-cli/package.json and packages/bruno-converters/package.json
 - Then run
 ```aiignore
 scripts/publish-cli.sh  

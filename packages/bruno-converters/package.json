@@ -1,6 +1,6 @@
 {
   "name": "@forwardfinancing/bruno-converters",
-  "version": "0.0.1",
+  "version": "0.0.4",
   "license": "MIT",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -28,7 +28,7 @@
     "prepack": "npm run test && npm run build"
   },
   "dependencies": {
-    "@usebruno/schema": "^0.7.0",
+    "@usebruno/schema": "^0.24.0",
     "js-yaml": "^4.1.1",
     "jscodeshift": "^17.3.0",
     "lodash": "^4.17.21",
