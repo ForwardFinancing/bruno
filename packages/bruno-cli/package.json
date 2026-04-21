@@ -1,17 +1,20 @@
 {
-  "name": "@usebruno/cli",
-  "version": "1.16.0",
+  "name": "@forwardfinancing/bruno-cli",
+  "version": "0.0.1",
   "license": "MIT",
   "main": "src/index.js",
   "bin": {
     "bru": "./bin/bru.js"
   },
   "bugs": {
-    "url": "https://github.com/usebruno/bruno/issues"
+    "url": "https://github.com/ForwardFinancing/bruno/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/usebruno/bruno.git"
+    "url": "git+https://github.com/ForwardFinancing/bruno.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "keywords": [
     "API",

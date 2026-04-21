@@ -1,3 +1,20 @@
+# NOTICE:
+
+This fork exists solely to improve the openapi to bruno conversion.
+
+I.e this command:
+```bash
+bru import openapi --source path/to/openapi.yaml --output ./my-collection --collection-name "My API"
+```
+
+## How to make a new release?
+
+- Bump the version in packages/bruno-cli/package.json
+- Then run
+```aiignore
+scripts/publish-cli.sh  
+```
+
 <br />
 <img src="assets/images/logo-transparent.png" width="80"/>
 

@@ -1,6 +1,6 @@
 {
-  "name": "@usebruno/converters",
-  "version": "0.1.0",
+  "name": "@forwardfinancing/bruno-converters",
+  "version": "0.0.1",
   "license": "MIT",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
@@ -9,6 +9,16 @@
     "src",
     "package.json"
   ],
+  "bugs": {
+    "url": "https://github.com/ForwardFinancing/bruno/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ForwardFinancing/bruno.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "test": "node --experimental-vm-modules $(npx which jest) --colors --collectCoverage",
